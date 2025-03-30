@@ -130,6 +130,14 @@ class Peer:
                 print(f"Resposta recebida: \"{message}\"")
                 self.process_peer_list(message)  # Atualiza a lista de peers
 
+            elif message_type == "BYE":
+                print(f"Mensagem recebida: \"{message}\"")
+                #Atualiza o status do peer que enviou a mensagem para OFFLINE
+                with self.lock:
+                    self.neighbors[origem] = "OFFLINE"
+                
+                print(f"Atualizando peer {origem} status OFFLINE")
+
             print("> ")
 
         except Exception as e:
@@ -154,10 +162,12 @@ class Peer:
                 s.sendall(message.encode())
 
             #Se enviou com sucesso, atualiza status do vizinho para ONLINE
-            #Protegendo atualizacao do dicionario
-            with self.lock:
-                self.neighbors[f"{dest_ip}:{dest_port}"] = "ONLINE"
-            print(f"Atualizando peer {dest_ip}:{dest_port} status ONLINE")
+            #Se for uma mensagem BYE, não mostramos a atualização de status para seguir o exemplo que consta no pdf do EP
+            if not (message_type == "BYE"):
+                #Protegendo atualizacao do dicionario
+                with self.lock:
+                    self.neighbors[f"{dest_ip}:{dest_port}"] = "ONLINE"
+                print(f"Atualizando peer {dest_ip}:{dest_port} status ONLINE")
 
         # Se falhou, marca como OFFLINE
         except (socket.error, socket.timeout):
@@ -165,22 +175,6 @@ class Peer:
                 self.neighbors[f"{dest_ip}:{dest_port}"] = "OFFLINE"
             print(f"Atualizando peer {dest_ip}:{dest_port} status OFFLINE")
 
-    def get_archives(self, path): #salva os arquivos do diretorio que estao em "path" dentro de uma lista
-        try:
-            os.chdir(path) #muda o diretório atual
-
-            current_dir = os.getcwd() #salva na variavel current_dir o diretorio atual
-
-            contents = os.listdir() #salva a listagem de diretorio em uma lista
-
-            return contents
-        except Exception as e:
-            print(e)
-
-
-    def list_archives(self, list): #printa a lista de arquivos
-        for item in list:
-            print(item + "\n")
 
 
 if __name__ == "__main__":
@@ -241,15 +235,26 @@ if __name__ == "__main__":
 
         #Lista arquivos locais do diretorio
         elif opcao == "3":
-           dir_list = peer.get_archives("/Users/lukauf/Desktop/Projects 2025/USP Projects/EP1_SD/diretorio")
-           peer.list_archives(dir_list)
+            arquivos = os.listdir(shared_dir)
+            #Se há arquivos no diretório
+            if arquivos:
+                for arquivo in arquivos:
+                    print(arquivo)
+            else:
+                print("Nenhum arquivo encontrado no diretório compartilhado")
 
-
-
+        elif (opcao == "4" or opcao == "5" or opcao == "6"):
+            print("Comandos 4, 5 e 6 serão implementados em partes posteriores do EP...")
 
         elif opcao == "9":
+            #Percorre a lista de peers conhecidos
+            for peer_address, status in peer.neighbors.items():
+                if status == "ONLINE":
+                    dest_ip, dest_port = peer_address.split(":")
+                    peer.send_message(dest_ip, dest_port, "BYE")  # Envia a mensagem BYE
+
             print("Saindo...")
-            sys.exit(0)
+            sys.exit(0) #Encerra o programa
 
 
 
